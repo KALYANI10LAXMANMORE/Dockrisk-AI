@@ -7,7 +7,7 @@ import pandas as pd
 
 # Optional libraries
 try:
-    import fitz  # PyMuPDF
+    import pymupdf as fitz
 except ImportError:
     fitz = None
 
@@ -190,24 +190,23 @@ def extract_text_from_pdf(uploaded_file):
 
     try:
         pdf_bytes = uploaded_file.read()
-        document = fitz.open(stream=pdf_bytes, filetype="pdf")
-
-        pages = []
-        for page in document:
-            pages.append(page.get_text("text"))
-
-        text = clean_text("\n".join(pages))
-
-        # If the PDF is scanned and has no selectable text, try OCR.
-        if len(text.strip()) < 30 and pytesseract is not None and Image is not None:
-            ocr_pages = []
-
+        with fitz.open(stream=pdf_bytes, filetype="pdf") as document:
+            pages = []
             for page in document:
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-                image = Image.open(BytesIO(pix.tobytes("png")))
-                ocr_pages.append(pytesseract.image_to_string(image))
+                pages.append(page.get_text("text"))
 
-            text = clean_text("\n".join(ocr_pages))
+            text = clean_text("\n".join(pages))
+
+            # If the PDF is scanned and has no selectable text, try OCR.
+            if len(text.strip()) < 30 and pytesseract is not None and Image is not None:
+                ocr_pages = []
+
+                for page in document:
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                    image = Image.open(BytesIO(pix.tobytes("png")))
+                    ocr_pages.append(pytesseract.image_to_string(image))
+
+                text = clean_text("\n".join(ocr_pages))
 
         return text, None
 
